@@ -10,5 +10,5 @@ lazy val checkVariablesContent =
 checkVariablesContent := {
   if (insideDrone.value) {
     assert(droneEnvironment.value != None)
-  }
+  } else assert(droneEnvironment.value == None)
 }
