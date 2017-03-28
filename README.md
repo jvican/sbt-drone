@@ -1,6 +1,7 @@
 # sbt-drone
 
 [![Build Status](https://platform-ci.scala-lang.org/api/badges/jvican/sbt-drone/status.svg)](https://platform-ci.scala-lang.org/jvican/sbt-drone)
+[ ![Bintray download](https://api.bintray.com/packages/jvican/sbt-plugins/sbt-drone/images/download.svg) ](https://bintray.com/jvican/sbt-plugins/sbt-drone/_latestVersion)
 
 Simple sbt plugin that exposes the Drone CI environment variables in sbt.
   
