@@ -69,7 +69,12 @@ object DronePluginImplementation extends DroneModel with DroneSettings {
 
   def getEnvVariable(key: String): Option[String] = sys.env.get(key)
 
-  def getDroneEnvVariableOrDie[T](key: String, conversion: String => T): T = {
+  def getEnvOrDie[T](key: String): String = {
+    getEnvVariable(key)
+      .getOrElse(sys.error(Feedback.undefinedEnvironmentVariable(key)))
+  }
+
+  def getEnvOrDie[T](key: String, conversion: String => T): T = {
     getEnvVariable(key)
       .map(conversion)
       .getOrElse(sys.error(Feedback.undefinedEnvironmentVariable(key)))
@@ -80,89 +85,57 @@ object DronePluginImplementation extends DroneModel with DroneSettings {
     droneEnvironment := {
       if (!insideDrone.value) None
       else {
-        val repositoryInfo = for {
-          ciRepo <- getEnvVariable("DRONE_REPO")
-          ciRepoOwner <- getEnvVariable("DRONE_REPO_OWNER")
-          ciRepoName <- getEnvVariable("DRONE_REPO_NAME")
-          ciRepoScm <- getEnvVariable("DRONE_REPO_SCM")
-          ciRepoLink <- getEnvVariable("DRONE_REPO_LINK")
-          ciRepoAvatar <- getEnvVariable("DRONE_REPO_AVATAR")
-          ciRepoBranch <- getEnvVariable("DRONE_REPO_BRANCH")
-          ciRepoPrivate <- getEnvVariable("DRONE_REPO_PRIVATE").map(
-            _.toBoolean)
-          ciRepoTrusted <- getEnvVariable("DRONE_REPO_TRUSTED").map(
-            _.toBoolean)
-        } yield
-          RepositoryInfo(ciRepo,
-                         ciRepoOwner,
-                         ciRepoName,
-                         ciRepoScm,
-                         ciRepoLink,
-                         ciRepoAvatar,
-                         ciRepoBranch,
-                         ciRepoPrivate,
-                         ciRepoTrusted)
+        val repositoryInfo = RepositoryInfo(
+          getEnvOrDie("DRONE_REPO"),
+          getEnvOrDie("DRONE_REPO_OWNER"),
+          getEnvOrDie("DRONE_REPO_NAME"),
+          getEnvOrDie("DRONE_REPO_SCM"),
+          getEnvOrDie("DRONE_REPO_LINK"),
+          getEnvOrDie("DRONE_REPO_AVATAR"),
+          getEnvOrDie("DRONE_REPO_BRANCH"),
+          getEnvOrDie("DRONE_REPO_PRIVATE", _.toBoolean),
+          getEnvOrDie("DRONE_REPO_TRUSTED", _.toBoolean)
+        )
 
-        val buildInfo = for {
-          ciBuildNumber <- getEnvVariable("DRONE_BUILD_NUMBER").map(_.toInt)
-          ciBuildEvent <- getEnvVariable("DRONE_BUILD_EVENT")
-          ciBuildStatus <- getEnvVariable("DRONE_BUILD_STATUS")
-          ciBuildLink <- getEnvVariable("DRONE_BUILD_LINK")
-          ciBuildCreated <- getEnvVariable("DRONE_BUILD_CREATED")
-          ciBuildStarted <- getEnvVariable("DRONE_BUILD_STARTED")
-          ciBuildFinished <- getEnvVariable("DRONE_BUILD_FINISHED")
-          ciPrevBuildStatus <- getEnvVariable("DRONE_PREV_BUILD_STATUS")
-          ciPrevBuildNumber <- getEnvVariable("DRONE_PREV_BUILD_NUMBER").map(
-            _.toInt)
-          ciPrevCommitSha <- getEnvVariable("DRONE_PREV_COMMIT_SHA")
-        } yield
-          BuildInfo(
-            ciBuildNumber,
-            ciBuildEvent,
-            ciBuildStatus,
-            ciBuildLink,
-            ciBuildCreated,
-            ciBuildStarted,
-            ciBuildFinished,
-            ciPrevBuildStatus,
-            ciPrevBuildNumber,
-            ciPrevCommitSha
-          )
+        val buildInfo = BuildInfo(
+          getEnvOrDie("DRONE_BUILD_NUMBER", _.toInt),
+          getEnvOrDie("DRONE_BUILD_EVENT"),
+          getEnvOrDie("DRONE_BUILD_STATUS"),
+          getEnvOrDie("DRONE_BUILD_LINK"),
+          getEnvOrDie("DRONE_BUILD_CREATED"),
+          getEnvOrDie("DRONE_BUILD_STARTED"),
+          getEnvOrDie("DRONE_BUILD_FINISHED"),
+          getEnvOrDie("DRONE_PREV_BUILD_STATUS"),
+          getEnvOrDie("DRONE_PREV_BUILD_NUMBER", _.toInt),
+          getEnvOrDie("DRONE_PREV_COMMIT_SHA")
+        )
 
-        val commitInfo = for {
-          ciCommitSha <- getEnvVariable("DRONE_COMMIT_SHA")
-          ciCommitRef <- getEnvVariable("DRONE_COMMIT_REF")
-          ciCommitBranch <- getEnvVariable("DRONE_COMMIT_BRANCH")
-          ciCommitLink <- getEnvVariable("DRONE_COMMIT_LINK")
-          ciCommitMessage <- getEnvVariable("DRONE_COMMIT_MESSAGE")
-          ciAuthor <- getEnvVariable("DRONE_COMMIT_AUTHOR")
-          ciAuthorEmail <- getEnvVariable("DRONE_COMMIT_AUTHOR_EMAIL")
-          ciAuthorAvatar <- getEnvVariable("DRONE_COMMIT_AUTHOR_AVATAR")
-        } yield
-          CommitInfo(ciCommitSha,
-                     ciCommitRef,
-                     ciCommitBranch,
-                     ciCommitLink,
-                     ciCommitMessage,
-                     AuthorInfo(ciAuthor, ciAuthorEmail, ciAuthorAvatar))
+        val authorInfo = AuthorInfo(
+          getEnvOrDie("DRONE_COMMIT_AUTHOR"),
+          getEnvOrDie("DRONE_COMMIT_AUTHOR_EMAIL"),
+          getEnvOrDie("DRONE_COMMIT_AUTHOR_AVATAR")
+        )
 
-        for {
-          ciDroneArch <- getEnvVariable("DRONE_ARCH")
-          ciRepositoryInfo <- repositoryInfo
-          ciCommitInfo <- commitInfo
-          ciBuildInfo <- buildInfo
-          ciRemoteUrl <- getEnvVariable("DRONE_REMOTE_URL")
-        } yield
+        val commitInfo = CommitInfo(
+          getEnvOrDie("DRONE_COMMIT_SHA"),
+          getEnvOrDie("DRONE_COMMIT_REF"),
+          getEnvOrDie("DRONE_COMMIT_BRANCH"),
+          getEnvOrDie("DRONE_COMMIT_LINK"),
+          getEnvOrDie("DRONE_COMMIT_MESSAGE"),
+          authorInfo
+        )
+
+        Some(
           CIEnvironment(
             file(DefaultDroneWorkspace),
-            ciDroneArch,
-            ciRepositoryInfo,
-            ciCommitInfo,
-            ciBuildInfo,
-            ciRemoteUrl,
+            getEnvOrDie("DRONE_ARCH"),
+            repositoryInfo,
+            commitInfo,
+            buildInfo,
+            getEnvOrDie("DRONE_REMOTE_URL"),
             getEnvVariable("DRONE_PULL_REQUEST").map(_.toInt),
             getEnvVariable("DRONE_TAG")
-          )
+          ))
       }
     }
   )
