@@ -38,9 +38,9 @@ trait DroneModel {
                        created: String,
                        started: String,
                        finished: String,
-                       prevBuildStatus: String,
-                       prevBuildNumber: Int,
-                       prevCommitSha: String)
+                       prevBuildStatus: Option[String],
+                       prevBuildNumber: Option[Int],
+                       prevCommitSha: Option[String])
 
   case class CIEnvironment(rootDir: File,
                            arch: String,
@@ -67,21 +67,21 @@ object DronePluginImplementation extends DroneModel with DroneSettings {
       s"Undefined environment variable $name."
   }
 
-  def getEnvVariable(key: String): Option[String] = sys.env.get(key)
+  def getOptEnv(key: String): Option[String] = sys.env.get(key)
 
   def getEnvOrDie[T](key: String): String = {
-    getEnvVariable(key)
+    getOptEnv(key)
       .getOrElse(sys.error(Feedback.undefinedEnvironmentVariable(key)))
   }
 
   def getEnvOrDie[T](key: String, conversion: String => T): T = {
-    getEnvVariable(key)
+    getOptEnv(key)
       .map(conversion)
       .getOrElse(sys.error(Feedback.undefinedEnvironmentVariable(key)))
   }
 
   lazy val droneSettings = Seq(
-    insideDrone := getEnvVariable("DRONE").exists(_.toBoolean),
+    insideDrone := getOptEnv("DRONE").exists(_.toBoolean),
     droneEnvironment := {
       if (!insideDrone.value) None
       else {
@@ -105,9 +105,9 @@ object DronePluginImplementation extends DroneModel with DroneSettings {
           getEnvOrDie("DRONE_BUILD_CREATED"),
           getEnvOrDie("DRONE_BUILD_STARTED"),
           getEnvOrDie("DRONE_BUILD_FINISHED"),
-          getEnvOrDie("DRONE_PREV_BUILD_STATUS"),
-          getEnvOrDie("DRONE_PREV_BUILD_NUMBER", _.toInt),
-          getEnvOrDie("DRONE_PREV_COMMIT_SHA")
+          getOptEnv("DRONE_PREV_BUILD_STATUS"),
+          getOptEnv("DRONE_PREV_BUILD_NUMBER").map(_.toInt),
+          getOptEnv("DRONE_PREV_COMMIT_SHA")
         )
 
         val authorInfo = AuthorInfo(
@@ -133,8 +133,8 @@ object DronePluginImplementation extends DroneModel with DroneSettings {
             commitInfo,
             buildInfo,
             getEnvOrDie("DRONE_REMOTE_URL"),
-            getEnvVariable("DRONE_PULL_REQUEST").map(_.toInt),
-            getEnvVariable("DRONE_TAG")
+            getOptEnv("DRONE_PULL_REQUEST").map(_.toInt),
+            getOptEnv("DRONE_TAG")
           ))
       }
     }
